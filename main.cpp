@@ -2,7 +2,10 @@
 // Mehul Pathak - E22CSEU1253
 // Lakshit Agarwal - E22CSEU1249
 #include <bits/stdc++.h>
+#include <filesystem>
+#include <fstream>
 using namespace std;
+namespace fs = filesystem;
 
 string time_now();
 
@@ -59,6 +62,9 @@ string* split_name(string str);
 TreeNode* cd(TreeNode* root, TreeNode* pwd, string path);
 TreeNode* create(TreeNode* root, TreeNode* pwd, string path, char type);
 void remove(TreeNode* root, TreeNode* pwd, string path);
+void mkdir2(TreeNode* root, TreeNode* pwd, string path);
+void createfile(TreeNode* root, TreeNode* pwd, string path);
+void deletefile(TreeNode* root, TreeNode* pwd, string path);
 void dupl(TreeNode* root, TreeNode* pwd, string src, string dst, int keep);
 void edit(TreeNode* root, TreeNode* pwd, string path);
 void cat(TreeNode* root, TreeNode* pwd, string path);
@@ -159,6 +165,7 @@ int main()
             {
                 args.pop_front();
                 create(root, pwd, args.front(), 'd');
+                mkdir2(root, pwd, args.front());
             }
         }
         else if (args.front() == "touch")
@@ -169,9 +176,10 @@ int main()
             {
                 args.pop_front();
                 create(root, pwd, args.front(), '-');
+                createfile(root,pwd,args.front());
             }
         }
-        else if (args.front() == "rm" || args.front() == "rmdir")
+        else if (args.front() == "rm")
         {
             if (args.size() == 1)
                 cout << args.front() << ": missing operand" << endl;
@@ -179,6 +187,7 @@ int main()
             {
                 args.pop_front();
                 remove(root, pwd, args.front());
+                deletefile(root,pwd,args.front());
             }
         }
         else if (args.front() == "cp" || args.front() == "mv")
@@ -255,7 +264,6 @@ void print_help()
     cout << "\tcp - Copy a file" << endl;
     cout << "\tmv - Move a file" << endl;
     cout << "\tmkdir - Create a new directory" << endl;
-    cout << "\trmdir - Remove an empty directory" << endl;
     cout << "\ttouch - Create a file" << endl;
     cout << "\trm - Remove a file" << endl;
     cout << "\tcat - Print the file content" << endl;
@@ -264,6 +272,60 @@ void print_help()
     cout << "\texit - Exit the program" << endl << endl;
     cout << "CREATED BY -\n--> Aryan Niranjan\n--> Mehul Pathak\n--> Lakshit Agarwal" << endl;
     cout << "------------------------------------------------------------" << endl;
+}
+
+void createDirectory(const string& basePath, const string& directoryName) {
+    filesystem::path directoryPath = basePath + "/" + directoryName;
+    try {
+        filesystem::create_directory(directoryPath);
+        cout << "Directory created successfully at: " << directoryPath << endl;
+    } catch (const filesystem::filesystem_error& ex) {
+        cerr << "Error creating directory: " << ex.what() << endl;
+    }
+}
+
+void createFile(const std::string& path, const std::string& filename) {
+    fs::path filePath = fs::path(path) / fs::path(filename);
+    if (!fs::exists(filePath)) {
+        std::ofstream outputFile(filePath);
+        if (outputFile.is_open()) {
+            outputFile.close();
+
+            std::cout << "File created successfully at: " << filePath << "\n";
+        } else {
+            std::cerr << "Error opening the file.\n";
+        }
+    } else {
+        std::cerr << "File already exists at: " << filePath << "\n";
+    }
+}
+
+void deleteFile(const std::string& path, const std::string& filename) {
+    fs::path filePath = fs::path(path) / fs::path(filename);
+    if (fs::exists(filePath)) {
+        if (fs::remove(filePath)) {
+            std::cout << "File deleted successfully: " << filePath << "\n";
+        } else {
+            std::cerr << "Error deleting the file: " << filePath << "\n";
+        }
+    } else {
+        std::cerr << "File not found: " << filePath << "\n";
+    }
+}
+
+void mkdir2(TreeNode* root, TreeNode* pwd, string path){
+    string name = split_name(path)[1];
+    createDirectory(pwd_str(root,pwd),name);
+}
+
+void createfile(TreeNode* root, TreeNode* pwd, string path){
+    string name = split_name(path)[1];
+    createFile(pwd_str(root,pwd),name);
+}
+
+void deletefile(TreeNode* root, TreeNode* pwd, string path){
+    string name = split_name(path)[1];
+    deleteFile(pwd_str(root,pwd),name);
 }
 
 void print_tree(TreeNode* root, string prev)
@@ -575,22 +637,52 @@ void cat(TreeNode* root, TreeNode* pwd, string path)
     TreeNode* temp = find_node(root, pwd, path);
     if (temp == NULL)
     {
-        cout << "the file '" << path << "' does not exist" << endl;
+        cout << "cat: '" << path << "': No such file" << endl;
         return;
     }
     if (temp->type != '-')
     {
-        cout << "'" << path << "' is not a file" << endl;
+        cout << "cat: '" << path << "': Is a directory" << endl;
         return;
     }
     if (temp->perm < 4)
     {
-        cout << "you don't have permission to read '" << path << "'" << endl;
+        cout << "cat: Permission denied: '" << path << "'" << endl;
         return;
     }
-    for (list<string>::iterator it = temp->content.begin(); it != temp->content.end(); it++)
-        cout << *it << endl;
+
+    try
+    {
+        fs::path filePath = fs::path(pwd_str(root, temp));
+        if (fs::exists(filePath) && fs::is_regular_file(filePath))
+        {
+            std::ifstream file(filePath);
+            if (file.is_open())
+            {
+                std::string line;
+                while (std::getline(file, line))
+                {
+                    cout << line << endl;
+                }
+                file.close();
+            }
+            else
+            {
+                cout << "cat: Unable to open file: '" << path << "'" << endl;
+            }
+        }
+        else
+        {
+            cout << "cat: '" << path << "': No such file" << endl;
+        }
+    }
+    catch (const std::exception& ex)
+    {
+        cout << "cat: Error reading file: '" << path << "'" << endl;
+        cerr << ex.what() << endl;
+    }
 }
+
 
 void edit(TreeNode* root, TreeNode* pwd, string path)
 {
@@ -729,15 +821,38 @@ string time_now()
     return res;
 }
 
+void addDirectories(const fs::path& path, vector<string>& paths) {
+    fs::path currentPath;
+
+    for (const auto& component : path) {
+        currentPath /= component;
+        string pathString = currentPath.string();
+
+        if (find(paths.begin(), paths.end(), pathString) == paths.end()) {
+            paths.push_back(pathString);
+        }
+    }
+}
+
+void listFilesAndFolders(const string& folderPath, vector<string>& paths, vector<string>& files) {
+    for (const auto& entry : fs::directory_iterator(folderPath)) {
+        const fs::path& currentPath = entry.path();
+
+        if (fs::is_regular_file(currentPath) && currentPath.filename().string()[0] != '.') {
+            files.push_back(currentPath.string());
+        } else if (fs::is_directory(currentPath) && currentPath.filename().string()[0] != '.') {
+            addDirectories(currentPath, paths);
+        }
+    }
+}
+
 void linux_tree(TreeNode* root)
 {
-    vector<string> Dirs{"bin", "etc", "etc/systemd", "etc/systemd/system", "etc/systemd/user", 
-        "home", "home/user", "home/user/Desktop", "home/user/Documents", "home/user/Downloads", 
-        "home/user/Pictures", "tmp"};
-    vector<string> Files{"bin/bash", "bin/cd", "bin/gcc", "bin/ls", "bin/python", 
-        "etc/systemd/system/display-manager.service", "etc/systemd/system.conf", "etc/systemd/user.conf", 
-        "etc/hosts", "etc/passwd", "etc/profile", "home/user/.bashrc"};
-
+    string folderPath = "/Users/mpathak/cppprojecttesting";
+    vector<string> Dirs;
+    vector<string> Files;
+    listFilesAndFolders(folderPath, Dirs, Files);
+    
     for (string d : Dirs)
     {
         create(root, root, d, 'd');
