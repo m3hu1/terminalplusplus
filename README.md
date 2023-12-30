@@ -1,2 +1,2 @@
 # terminalplusplus
-A C++ based file management system
+A C++ based file management system.
